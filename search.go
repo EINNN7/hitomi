@@ -1,7 +1,6 @@
 package hitomi
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -12,8 +11,11 @@ import (
 	"github.com/EINNN7/hitomi/internal/util"
 )
 
+// MaxNodeSize is the maximum size of a binary tree node,
+// which is request chunk size.
 const MaxNodeSize = 464
 
+// Search is a hitomi search client.
 type Search struct {
 	options *Options
 
@@ -29,6 +31,7 @@ func NewSearch(options *Options) *Search {
 	}
 }
 
+// IndexVersion returns the version of the index.
 func (s *Search) IndexVersion(name string) (string, error) {
 	req, _ := http.NewRequest("GET", fmt.Sprintf("https://ltn.hitomi.la/%s/version?_=%d", name, time.Now().UnixMilli()), nil)
 	resp, err := s.options.Client.Do(req)
@@ -45,6 +48,8 @@ func (s *Search) IndexVersion(name string) (string, error) {
 	return string(version), nil
 }
 
+// TagSuggestion returns tag suggestions for the query.
+// The query must be in the form of "field:query".
 func (s *Search) TagSuggestion(query string) ([]string, error) {
 	field := strings.Split(query, ":")
 	if len(field) != 2 {
@@ -54,11 +59,89 @@ func (s *Search) TagSuggestion(query string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	dataOffset, err := s.searchNode(field[0], HashTerm(field[1]), firstNode)
+	dataOffset, err := s.searchNode(field[0], util.HashTerm(field[1]), firstNode)
 	if err != nil {
 		return nil, fmt.Errorf("cannot find search result: %w", err)
 	}
 	return s.tagSuggestionData(field[0], dataOffset)
+}
+
+func (s *Search) tagSuggestionData(field string, data [2]int) ([]string, error) {
+	req, _ := http.NewRequest("GET", fmt.Sprintf("https://ltn.hitomi.la/tagindex/%s.%s.data", field, s.indexVersion["tagindex"]), nil)
+	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", data[0], data[0]+data[1]))
+	resp, err := s.options.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var position = 4
+	suggestionLength := int32(binary.BigEndian.Uint32(content[0:4]))
+	var suggestions = make([]string, suggestionLength)
+	for i := int32(0); i < suggestionLength; i++ {
+		headerLength := int32(binary.BigEndian.Uint32(content[position : position+4]))
+		position += 4
+		header := string(content[position : position+int(headerLength)])
+		position += int(headerLength)
+		tagLength := int32(binary.BigEndian.Uint32(content[position : position+4]))
+		position += 4
+		tag := string(content[position : position+int(tagLength)])
+		position += int(tagLength) + 4
+		suggestions[i] = header + ":" + strings.ReplaceAll(tag, " ", "_")
+	}
+	return suggestions, nil
+}
+
+type node struct {
+	Key            [][]byte
+	Data           [][2]int
+	SubNodeAddress []int
+}
+
+func decodeNode(data []byte) (*node, error) {
+	node := new(node)
+	node.Key = [][]byte{}
+	node.Data = [][2]int{}
+	node.SubNodeAddress = []int{}
+
+	var pos int32 = 4
+	keyLength := int32(binary.BigEndian.Uint32(data[0:4]))
+
+	for i := int32(0); i < keyLength; i++ {
+		keySize := int32(binary.BigEndian.Uint32(data[pos : pos+4]))
+		if keySize == 0 || keySize > 32 {
+			return nil, fmt.Errorf("invalid key size: %d", keySize)
+		}
+		pos += 4
+		node.Key = append(node.Key, data[pos:pos+keySize])
+		pos += keySize
+	}
+
+	dataLength := int32(binary.BigEndian.Uint32(data[pos : pos+4]))
+	pos += 4
+
+	for i := int32(0); i < dataLength; i++ {
+		offset := int64(binary.BigEndian.Uint64(data[pos : pos+8]))
+		pos += 8
+
+		length := int32(binary.BigEndian.Uint32(data[pos : pos+4]))
+		pos += 4
+
+		node.Data = append(node.Data, [2]int{int(offset), int(length)})
+	}
+
+	for i := 0; i < 16+1; i++ {
+		subNodeAddress := binary.BigEndian.Uint64(data[pos : pos+8])
+		pos += 8
+		node.SubNodeAddress = append(node.SubNodeAddress, int(subNodeAddress))
+	}
+
+	return node, nil
 }
 
 func (s *Search) nodeByAddress(field string, address int) (*node, error) {
@@ -148,53 +231,6 @@ func (s *Search) nodeByAddress(field string, address int) (*node, error) {
 	}
 }
 
-type node struct {
-	Key            [][]byte
-	Data           [][2]int
-	SubNodeAddress []int
-}
-
-func decodeNode(data []byte) (*node, error) {
-	node := new(node)
-	node.Key = [][]byte{}
-	node.Data = [][2]int{}
-	node.SubNodeAddress = []int{}
-
-	var pos int32 = 4
-	keyLength := int32(binary.BigEndian.Uint32(data[0:4]))
-
-	for i := int32(0); i < keyLength; i++ {
-		keySize := int32(binary.BigEndian.Uint32(data[pos : pos+4]))
-		if keySize == 0 || keySize > 32 {
-			return nil, fmt.Errorf("invalid key size: %d", keySize)
-		}
-		pos += 4
-		node.Key = append(node.Key, data[pos:pos+keySize])
-		pos += keySize
-	}
-
-	dataLength := int32(binary.BigEndian.Uint32(data[pos : pos+4]))
-	pos += 4
-
-	for i := int32(0); i < dataLength; i++ {
-		offset := int64(binary.BigEndian.Uint64(data[pos : pos+8]))
-		pos += 8
-
-		length := int32(binary.BigEndian.Uint32(data[pos : pos+4]))
-		pos += 4
-
-		node.Data = append(node.Data, [2]int{int(offset), int(length)})
-	}
-
-	for i := 0; i < 16+1; i++ {
-		subNodeAddress := binary.BigEndian.Uint64(data[pos : pos+8])
-		pos += 8
-		node.SubNodeAddress = append(node.SubNodeAddress, int(subNodeAddress))
-	}
-
-	return node, nil
-}
-
 func (s *Search) searchNode(field string, key []byte, node *node) ([2]int, error) {
 	if node == nil {
 		return [2]int{}, fmt.Errorf("node is nil")
@@ -216,40 +252,4 @@ func (s *Search) searchNode(field string, key []byte, node *node) ([2]int, error
 		return [2]int{}, fmt.Errorf("failed to retrive subNode %d", next)
 	}
 	return s.searchNode(field, key, subNode)
-}
-
-func (s *Search) tagSuggestionData(field string, data [2]int) ([]string, error) {
-	req, _ := http.NewRequest("GET", fmt.Sprintf("https://ltn.hitomi.la/tagindex/%s.%s.data", field, s.indexVersion["tagindex"]), nil)
-	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", data[0], data[0]+data[1]))
-	resp, err := s.options.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
-	content, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	var position = 4
-	suggestionLength := int32(binary.BigEndian.Uint32(content[0:4]))
-	var suggestions = make([]string, suggestionLength)
-	for i := int32(0); i < suggestionLength; i++ {
-		headerLength := int32(binary.BigEndian.Uint32(content[position : position+4]))
-		position += 4
-		header := string(content[position : position+int(headerLength)])
-		position += int(headerLength)
-		tagLength := int32(binary.BigEndian.Uint32(content[position : position+4]))
-		position += 4
-		tag := string(content[position : position+int(tagLength)])
-		position += int(tagLength) + 4
-		suggestions[i] = header + ":" + strings.ReplaceAll(tag, " ", "_")
-	}
-	return suggestions, nil
-}
-
-func HashTerm(query string) []byte {
-	bytes := sha256.Sum256([]byte(query))
-	return bytes[0:4]
 }

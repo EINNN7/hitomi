@@ -1,5 +1,7 @@
 package util
 
+import "crypto/sha256"
+
 func compareByteSlices(slice1, slice2 []byte) int {
 	minLength := len(slice1)
 	if len(slice2) < minLength {
@@ -36,4 +38,9 @@ func IsLeaf(S []int) bool {
 		}
 	}
 	return true
+}
+
+func HashTerm(query string) []byte {
+	bytes := sha256.Sum256([]byte(query))
+	return bytes[0:4]
 }
