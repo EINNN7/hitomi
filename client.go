@@ -28,7 +28,7 @@ func NewClient(options *Options) *Client {
 }
 
 // UpdateScript updates script from https://ltn.hitomi.la/gg.js
-// This is required to calculated file url.
+// This is required to calculate file url.
 func (c *Client) UpdateScript() error {
 	req, err := http.NewRequest("GET", "https://ltn.hitomi.la/gg.js", nil)
 	if err != nil {
