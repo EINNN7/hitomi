@@ -3,7 +3,11 @@ package hitomi
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"testing"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var client *Client
@@ -14,7 +18,9 @@ func pp(v any) string {
 }
 
 func TestMain(t *testing.M) {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	client = NewClient(DefaultOptions())
+	search = NewSearch(DefaultOptions())
 	t.Run()
 }
 

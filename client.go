@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog"
-
 	"github.com/EINNN7/hitomi/internal/script"
 )
 
@@ -20,7 +18,6 @@ type Client struct {
 
 	script            *script.Script
 	lastScriptUpdated time.Time
-	logger            zerolog.Logger
 }
 
 // NewClient creates a new hitomi client.
@@ -54,7 +51,7 @@ func (c *Client) UpdateScript() error {
 	c.script = script.ParseScript(string(content))
 	c.lastScriptUpdated = time.Now()
 
-	c.logger.Debug().Str("updated_base_path", c.script.BasePath).Msgf("Script updated")
+	c.options.Logger.Debug().Str("base_path", c.script.BasePath).Msgf("Script updated")
 	return nil
 }
 
@@ -106,7 +103,7 @@ func (c *Client) File(url, galleryId string) ([]byte, error) {
 func (c *Client) FileURL(hash string) string {
 	if c.options.UpdateScriptInterval != -1 && time.Since(c.lastScriptUpdated) > c.options.UpdateScriptInterval {
 		if err := c.UpdateScript(); err != nil {
-			c.logger.Warn().Err(err).Msg("failed to update script")
+			c.options.Logger.Warn().Err(err).Msg("failed to update script")
 		}
 	}
 	return fmt.Sprintf("https://%s.hitomi.la/webp/%s.webp", c.script.SubdomainFromURL(fmt.Sprintf("https://a.hitomi.la/webp/%s", c.script.FullPathFromHash(hash)), "a"), c.script.FullPathFromHash(hash))

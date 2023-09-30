@@ -8,8 +8,8 @@
 # hitomi
 hitomi is go client library for hitomi.la
 
-|       feature       | status |
-|:-------------------:|:------:|
-|       search        |   X    |
-| gallery information |   ✅    |
-|        image        |   ✅    |
+|       feature       |      status       |
+|:-------------------:|:-----------------:|
+|       search        | (Partial Support) |
+| gallery information |         ✅         |
+|   retrieve image    |         ✅         |
