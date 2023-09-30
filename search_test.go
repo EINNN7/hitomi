@@ -6,23 +6,6 @@ import (
 
 var search *Search
 
-func TestSearch_SearchNode(t *testing.T) {
-	node, err := search.nodeByAddress("female", 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := search.searchNode("female", HashTerm("big"), node)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(data)
-	tags, err := search.tagSuggestionData("female", data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(tags)
-}
-
 func TestSearch_TagSuggestion(t *testing.T) {
 	result, err := search.TagSuggestion("tag:")
 	if err != nil {
