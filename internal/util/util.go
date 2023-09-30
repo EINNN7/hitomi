@@ -1,17 +1,32 @@
 package util
 
-import "bytes"
+func compareByteSlices(slice1, slice2 []byte) int {
+	minLength := len(slice1)
+	if len(slice2) < minLength {
+		minLength = len(slice2)
+	}
 
-func SliceContains(S [][]byte, E []byte) (bool, int) {
-	for i := 0; i < len(S); i++ {
-		if t := bytes.Compare(S[i], E); t >= 0 {
-			if t == 0 {
-				return true, i
-			}
-			return false, i
+	for i := 0; i < minLength; i++ {
+		if slice1[i] < slice2[i] {
+			return -1
+		} else if slice1[i] > slice2[i] {
+			return 1
 		}
 	}
-	return false, 0
+
+	return 0
+}
+
+func SliceContains(S [][]byte, E []byte) (bool, int) {
+	cmpResult := -1
+	i := 0
+	for i = 0; i < len(S); i++ {
+		cmpResult = compareByteSlices(E, S[i])
+		if cmpResult <= 0 {
+			break
+		}
+	}
+	return cmpResult == 0, i
 }
 
 func IsLeaf(S []int) bool {
