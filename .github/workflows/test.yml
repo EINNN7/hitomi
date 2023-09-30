@@ -1,15 +1,14 @@
-name: Go
+name: test library
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    paths:
+      - '**.go'
+      - 'go.mod'
   schedule:
     - cron: "0 1 * * *"
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
