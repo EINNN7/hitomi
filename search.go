@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog"
-
 	"github.com/EINNN7/hitomi/internal/util"
 )
 
@@ -18,8 +16,6 @@ const MaxNodeSize = 464
 
 type Search struct {
 	options *Options
-
-	logger zerolog.Logger
 
 	indexVersion map[string]string
 	indexCache   map[string][]byte

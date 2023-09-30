@@ -49,7 +49,7 @@ func (o *Options) WithCacheWholeIndex(b bool) *Options {
 func DefaultOptions() *Options {
 	return &Options{
 		Client:               &http.Client{},
-		Logger:               log.Logger.With().Str("caller", "github.com/EINNN7/hitomi").Logger(),
+		Logger:               log.Logger.With().Str("caller", "github.com/EINNN7/hitomi").Logger().Level(zerolog.InfoLevel),
 		UpdateScriptInterval: -1,
 
 		CacheWholeIndex: false,
