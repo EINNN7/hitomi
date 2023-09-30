@@ -110,10 +110,10 @@ func (s *Search) nodeByAddress(field string, address int) (*node, error) {
 		url = fmt.Sprintf("https://ltn.hitomi.la/tagindex/%s.%s.index", field, s.indexVersion["tagindex"])
 	}
 	if s.options.CacheWholeIndex {
-		if v, ok := s.indexCache[field]; ok {
+		if v, ok := s.indexCache[url]; ok {
 			return decodeNode(v[address : address+MaxNodeSize-1])
 		}
-		s.options.Logger.Debug().Msgf("indexCache for %s not found, fetch fresh one", field)
+		s.options.Logger.Debug().Msgf("indexCache for %s not found, fetch fresh one", url)
 		req, _ := http.NewRequest("GET", url, nil)
 		resp, err := s.options.Client.Do(req)
 		if err != nil {
@@ -129,7 +129,7 @@ func (s *Search) nodeByAddress(field string, address int) (*node, error) {
 		if err != nil {
 			return nil, err
 		}
-		s.indexCache[field] = content
+		s.indexCache[url] = content
 		return decodeNode(content[address : address+MaxNodeSize-1])
 	} else {
 		req, _ := http.NewRequest("GET", url, nil)
