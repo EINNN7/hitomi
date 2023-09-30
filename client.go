@@ -23,7 +23,7 @@ type Client struct {
 	logger            zerolog.Logger
 }
 
-// NewClient creates a new hitomi client
+// NewClient creates a new hitomi client.
 func NewClient(options *Options) *Client {
 	return &Client{
 		options: options,
@@ -31,7 +31,7 @@ func NewClient(options *Options) *Client {
 }
 
 // UpdateScript updates script from https://ltn.hitomi.la/gg.js
-// This is required to calculated file url
+// This is required to calculated file url.
 func (c *Client) UpdateScript() error {
 	req, err := http.NewRequest("GET", "https://ltn.hitomi.la/gg.js", nil)
 	if err != nil {
@@ -58,7 +58,7 @@ func (c *Client) UpdateScript() error {
 	return nil
 }
 
-// Gallery returns normalized gallery information
+// Gallery returns normalized gallery information.
 func (c *Client) Gallery(id string) (*Gallery, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://ltn.hitomi.la/galleries/%s.js", id), nil)
 	if err != nil {
@@ -113,7 +113,7 @@ func (c *Client) FileURL(hash string) string {
 }
 
 // FileRequest returns *http.Request for file
-// useful when displaying download progress
+// useful when displaying download progress.
 func (c *Client) FileRequest(url, galleryId string) *http.Request {
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Accept", "image/webp,image/apng,image/*,*/*;q=0.8")
@@ -121,55 +121,55 @@ func (c *Client) FileRequest(url, galleryId string) *http.Request {
 	return req
 }
 
-// Gallery represents gallery information
+// Gallery represents gallery information.
 type Gallery struct {
-	Related   []string `json:"related"`
-	Languages []struct {
-		LocalName string `json:"language_localname"`
-		GalleryId string `json:"galleryid"`
-		Name      string `json:"name"`
-		Url       string `json:"url"`
-	} `json:"languages"`
+	Language          string
+	Id                string
+	Blocked           bool
+	Related           []string
+	LanguageUrl       string
+	LanguageLocalName string
+	Title             string
+	Date              string
+	Type              string
+	GalleryUrl        string
+	JapaneseTitle     *string
+	Languages         []struct {
+		LocalName string
+		GalleryId string
+		Name      string
+		Url       string
+	}
 	Tags []struct {
-		Tag string `json:"tag"`
-		Url string `json:"url"`
-	} `json:"tags"`
-	JapaneseTitle *string `json:"japanese_title"`
-	Artists       []struct {
-		Artist string `json:"artist"`
-		Url    string `json:"url"`
-	} `json:"artists"`
-	LanguageUrl       string `json:"language_url"`
-	LanguageLocalName string `json:"language_localname"`
-	Title             string `json:"title"`
-	Files             []struct {
-		HasJXL  bool   `json:"hasjxl"`
-		HasAVIF bool   `json:"hasavif"`
-		HasWEBP bool   `json:"haswebp"`
-		Width   int    `json:"width"`
-		Height  int    `json:"height"`
-		Name    string `json:"name"`
-		Hash    string `json:"hash"`
-		Single  bool   `json:"single,omitempty"`
-	} `json:"files"`
-	Date       string `json:"date"`
-	Type       string `json:"type"`
+		Tag string
+		Url string
+	}
+	Artists []struct {
+		Artist string
+		Url    string
+	}
+	Files []struct {
+		HasJXL  bool
+		HasAVIF bool
+		HasWEBP bool
+		Width   int
+		Height  int
+		Name    string
+		Hash    string
+		Single  bool
+	}
 	Characters []struct {
-		Character string `json:"character"`
-		Url       string `json:"url"`
-	} `json:"characters"`
+		Character string
+		Url       string
+	}
 	Parodies []struct {
-		Parody string `json:"parody"`
-		Url    string `json:"url"`
-	} `json:"parodys"`
-	GalleryUrl string `json:"galleryurl"`
-	Groups     []struct {
-		Group string `json:"group"`
-		Url   string `json:"url"`
-	} `json:"groups"`
-	Language string `json:"language"`
-	Id       string `json:"id"`
-	Blocked  bool   `json:"blocked"`
+		Parody string
+		Url    string
+	}
+	Groups []struct {
+		Group string
+		Url   string
+	}
 }
 
 type galleryScript struct {
@@ -244,10 +244,10 @@ func (g *galleryScript) Normalize() *Gallery {
 	}
 	for _, language := range g.Languages {
 		gallery.Languages = append(gallery.Languages, struct {
-			LocalName string `json:"language_localname"`
-			GalleryId string `json:"galleryid"`
-			Name      string `json:"name"`
-			Url       string `json:"url"`
+			LocalName string
+			GalleryId string
+			Name      string
+			Url       string
 		}{
 			LocalName: language.LanguageLocalname,
 			GalleryId: language.Galleryid,
@@ -266,15 +266,18 @@ func (g *galleryScript) Normalize() *Gallery {
 			tagType = "tag:"
 		}
 		gallery.Tags = append(gallery.Tags, struct {
-			Tag string `json:"tag"`
-			Url string `json:"url"`
+			Tag string
+			Url string
 		}{
 			Tag: tagType + strings.ReplaceAll(tag.Tag, " ", "_"),
 			Url: tag.Url,
 		})
 	}
 	gallery.JapaneseTitle = g.JapaneseTitle
-	gallery.Artists = g.Artists
+	gallery.Artists = []struct {
+		Artist string
+		Url    string
+	}(g.Artists)
 	gallery.LanguageUrl = g.LanguageUrl
 	gallery.LanguageLocalName = g.LanguageLocalname
 	gallery.Title = g.Title
@@ -282,14 +285,14 @@ func (g *galleryScript) Normalize() *Gallery {
 	// Convert files
 	for _, file := range g.Files {
 		gallery.Files = append(gallery.Files, struct {
-			HasJXL  bool   `json:"hasjxl"`
-			HasAVIF bool   `json:"hasavif"`
-			HasWEBP bool   `json:"haswebp"`
-			Width   int    `json:"width"`
-			Height  int    `json:"height"`
-			Name    string `json:"name"`
-			Hash    string `json:"hash"`
-			Single  bool   `json:"single,omitempty"`
+			HasJXL  bool
+			HasAVIF bool
+			HasWEBP bool
+			Width   int
+			Height  int
+			Name    string
+			Hash    string
+			Single  bool
 		}{
 			HasJXL:  file.Hasjxl == 1,
 			HasAVIF: file.Hasavif == 1,
@@ -304,10 +307,19 @@ func (g *galleryScript) Normalize() *Gallery {
 
 	gallery.Date = g.Date
 	gallery.Type = g.Type
-	gallery.Characters = g.Characters
-	gallery.Parodies = g.Parodys
+	gallery.Characters = []struct {
+		Character string
+		Url       string
+	}(g.Characters)
+	gallery.Parodies = []struct {
+		Parody string
+		Url    string
+	}(g.Parodys)
 	gallery.GalleryUrl = g.Galleryurl
-	gallery.Groups = g.Groups
+	gallery.Groups = []struct {
+		Group string
+		Url   string
+	}(g.Groups)
 	gallery.Language = g.Language
 	gallery.Id = g.GetId()
 	gallery.Blocked = g.Blocked == 1
